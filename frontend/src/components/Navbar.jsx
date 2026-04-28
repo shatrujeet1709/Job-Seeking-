@@ -1,120 +1,134 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../store/authSlice';
-import { LogOut, Menu, X, Briefcase, Sparkles } from 'lucide-react';
+import { LogOut, Menu, X, Briefcase, Sparkles, MessageSquare, Zap, Building2 } from 'lucide-react';
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import NotificationCenter from './NotificationCenter';
 
 export default function Navbar() {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const role = user?.role;
 
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate('/login');
+  const handleLogout = () => { dispatch(logout()); navigate('/login'); };
+
+  const navLink = "text-slate-600 hover:text-primary px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-primary/5";
+
+  // Role-specific nav links
+  const roleLinks = () => {
+    const links = [
+      { to: '/dashboard', label: 'Dashboard', show: true },
+      { to: '/profile', label: 'Profile', show: true },
+      { to: '/jobs', label: 'Jobs', show: true },
+      { to: '/ai-matches', label: 'AI Matches', show: role === 'seeker', icon: <Sparkles size={14} />, highlight: true },
+      { to: '/freelance/dashboard', label: 'My Gigs', show: role === 'freelancer', icon: <Zap size={14} className="text-amber-500" /> },
+      { to: '/freelance', label: 'Freelance', show: role !== 'freelancer' },
+      { to: '/recruiter', label: 'Hire', show: role === 'recruiter', icon: <Building2 size={14} /> },
+      { to: '/messages', label: 'Messages', show: true, icon: <MessageSquare size={14} className="inline" /> },
+    ];
+    return links.filter(l => l.show);
   };
 
   return (
-    <nav className="bg-white border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex">
-            <Link to="/" className="flex-shrink-0 flex items-center gap-2">
-              <div className="bg-primary p-2 rounded-xl">
-                <Briefcase className="h-6 w-6 text-white" />
+    <motion.div
+      initial={{ y: -100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ type: "spring", stiffness: 100, damping: 20 }}
+      className="fixed top-4 left-0 right-0 z-50 px-4 sm:px-6 lg:px-8 w-full max-w-7xl mx-auto pointer-events-none"
+    >
+      <nav className="bg-white/80 backdrop-blur-xl rounded-2xl pointer-events-auto border border-slate-200/60 shadow-[0_2px_20px_rgba(0,0,0,0.06)]">
+        <div className="px-5">
+          <div className="flex justify-between h-14 items-center">
+            <Link to="/" className="flex items-center gap-2.5 group">
+              <div className="bg-primary p-1.5 rounded-xl group-hover:shadow-md group-hover:shadow-primary/20 transition-all">
+                <Briefcase className="h-5 w-5 text-white" />
               </div>
-              <span className="font-bold text-xl text-gray-900 tracking-tight">JobAI</span>
+              <span className="font-bold text-xl text-slate-800 tracking-tight">JobAI</span>
             </Link>
-          </div>
-          
-          <div className="hidden sm:ml-6 sm:flex sm:items-center space-x-4">
-            {isAuthenticated ? (
-              <>
-                <Link to="/dashboard" className="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                  Dashboard
-                </Link>
-                <Link to="/profile" className="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                  Profile
-                </Link>
-                <Link to="/jobs" className="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                  Jobs Feed
-                </Link>
-                <Link to="/ai-matches" className="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1">
-                  <Sparkles size={14} /> AI Matches
-                </Link>
-                <Link to="/freelance" className="text-gray-600 hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors">
-                  Freelancers
-                </Link>
-                <div className="relative ml-3 flex items-center gap-4">
-                  <div className="flex items-center gap-2">
+
+            <div className="hidden sm:flex sm:items-center gap-1">
+              {isAuthenticated ? (
+                <>
+                  {roleLinks().map(link => (
+                    <Link key={link.to} to={link.to}
+                      className={link.highlight
+                        ? "text-primary hover:text-primary-dark px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-primary/5 flex items-center gap-1"
+                        : navLink + " flex items-center gap-1"
+                      }>
+                      {link.icon}{link.label}
+                    </Link>
+                  ))}
+
+                  <div className="h-6 w-px bg-slate-200 mx-1" />
+                  <NotificationCenter />
+                  <div className="h-6 w-px bg-slate-200 mx-1" />
+
+                  <div className="flex items-center gap-3 bg-slate-50 rounded-xl pl-1 pr-3 py-1 border border-slate-100">
                     {user?.avatar ? (
-                       <img className="h-8 w-8 rounded-full object-cover" src={user.avatar} alt="Avatar" />
+                      <img className="h-7 w-7 rounded-lg object-cover" src={user.avatar} alt="" />
                     ) : (
-                      <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-primary font-bold">
+                      <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
                         {user?.name?.charAt(0).toUpperCase() || 'U'}
                       </div>
                     )}
-                    <span className="text-sm font-medium text-gray-700">{user?.name}</span>
-                    <span className="text-xs bg-gray-100 px-2 py-1 rounded-md text-gray-500 capitalize">{user?.role}</span>
+                    <span className="text-sm font-medium text-slate-700">{user?.name}</span>
+                    <button onClick={handleLogout} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors" title="Logout">
+                      <LogOut className="h-4 w-4" />
+                    </button>
                   </div>
-                  <button
-                    onClick={handleLogout}
-                    className="p-2 rounded-full text-gray-400 hover:text-danger hover:bg-red-50 transition-colors"
-                    title="Logout"
-                  >
-                    <LogOut className="h-5 w-5" />
-                  </button>
+                </>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <Link to="/login" className="text-slate-600 hover:text-slate-900 font-medium transition-colors px-3 text-sm">Log in</Link>
+                  <Link to="/register" className="btn-primary text-sm px-5 py-2">Sign up</Link>
                 </div>
-              </>
-            ) : (
-              <div className="flex items-center space-x-4">
-                <Link to="/login" className="text-gray-600 hover:text-primary font-medium transition-colors">Log in</Link>
-                <Link to="/register" className="bg-primary text-white px-4 py-2 rounded-xl hover:bg-primary-dark font-medium transition-colors">Sign up</Link>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          <div className="-mr-2 flex items-center sm:hidden">
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary"
-            >
-              <span className="sr-only">Open main menu</span>
-              {isMobileMenuOpen ? <X className="block h-6 w-6" /> : <Menu className="block h-6 w-6" />}
+            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="sm:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100">
+              {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Mobile menu */}
-      {isMobileMenuOpen && (
-        <div className="sm:hidden border-t border-gray-100 text-center py-4 bg-gray-50">
-           {isAuthenticated ? (
-             <div className="space-y-4 px-4">
-               <div className="flex items-center justify-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-primary font-bold text-lg">
-                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+              className="sm:hidden border-t border-slate-100 text-center py-4 bg-white rounded-b-2xl overflow-hidden"
+            >
+              {isAuthenticated ? (
+                <div className="space-y-3 px-4">
+                  <div className="flex items-center justify-center gap-3 pb-3 border-b border-slate-100">
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
+                      {user?.name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium text-slate-800">{user?.name}</p>
+                      <p className="text-xs text-primary capitalize">{user?.role}</p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <p className="font-medium text-gray-900">{user?.name}</p>
-                    <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
-                  </div>
-               </div>
-               <Link to="/dashboard" className="block text-gray-700 hover:text-primary">Dashboard</Link>
-               <Link to="/profile" className="block text-gray-700 hover:text-primary">Profile</Link>
-               <Link to="/ai-matches" className="block text-gray-700 hover:text-primary">AI Matches</Link>
-               <Link to="/freelance" className="block text-gray-700 hover:text-primary">Freelancers</Link>
-               <button onClick={handleLogout} className="w-full text-center text-danger py-2">Logout</button>
-             </div>
-           ) : (
-             <div className="space-y-4">
-               <Link to="/login" className="block text-gray-600">Login</Link>
-               <Link to="/register" className="block text-primary font-medium">Sign up</Link>
-             </div>
-           )}
-        </div>
-      )}
-    </nav>
+                  {roleLinks().map(link => (
+                    <Link key={link.to} to={link.to} onClick={() => setIsMobileMenuOpen(false)}
+                      className="block text-slate-600 hover:text-primary py-1 flex items-center justify-center gap-1">
+                      {link.icon}{link.label}
+                    </Link>
+                  ))}
+                  <button onClick={handleLogout} className="w-full text-center text-red-500 py-2 border-t border-slate-100 mt-2">Logout</button>
+                </div>
+              ) : (
+                <div className="space-y-3 py-2">
+                  <Link to="/login" onClick={() => setIsMobileMenuOpen(false)} className="block text-slate-600">Login</Link>
+                  <Link to="/register" onClick={() => setIsMobileMenuOpen(false)} className="block text-primary font-bold">Sign up</Link>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </nav>
+    </motion.div>
   );
 }

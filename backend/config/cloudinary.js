@@ -1,6 +1,7 @@
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
+const { createFileFilter, RESUME_MIMES, IMAGE_MIMES } = require('../middleware/fileFilter.middleware');
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -18,5 +19,14 @@ const avatarStorage = new CloudinaryStorage({
   params: { folder: 'avatars', resource_type: 'image', allowed_formats: ['jpg', 'png', 'webp'] }
 });
 
-exports.uploadResume = multer({ storage: resumeStorage });
-exports.uploadAvatar = multer({ storage: avatarStorage });
+exports.uploadResume = multer({ 
+  storage: resumeStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max for resumes
+  fileFilter: createFileFilter(RESUME_MIMES),
+});
+
+exports.uploadAvatar = multer({ 
+  storage: avatarStorage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max for avatars/gig images
+  fileFilter: createFileFilter(IMAGE_MIMES),
+});

@@ -1,10 +1,11 @@
-const cron             = require('node-cron');
-const { runScraper }   = require('../services/jobScraper.service');
-const mongoose = require('mongoose');
+const cron           = require('node-cron');
+const { runScraper } = require('../services/jobScraper.service');
+const mongoose       = require('mongoose');
+const logger         = require('../utils/logger');
 
 // Run every 2 hours
 cron.schedule('0 */2 * * *', () => {
-  console.log('⏰ Cron: fetching fresh jobs...');
+  logger.info('Cron: fetching fresh jobs...');
   // Only run if DB is connected
   if(mongoose.connection.readyState === 1) {
     runScraper();
@@ -15,7 +16,7 @@ cron.schedule('0 */2 * * *', () => {
 exports.startCronJobs = () => {
     setTimeout(() => {
         if(mongoose.connection.readyState === 1) {
-            console.log('⏰ Running initial job scrape...');
+            logger.info('Running initial job scrape...');
             runScraper();
         }
     }, 5000); // Wait 5s for DB connection

@@ -26,3 +26,8 @@ export const getAppliedJobs = async () => {
   const response = await api.get('/jobs/user/applied');
   return response.data;
 };
+
+export const withdrawApplication = async (applicationId) => {
+  const response = await api.delete(`/jobs/applications/${applicationId}/withdraw`);
+  return response.data;
+};

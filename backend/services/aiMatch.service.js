@@ -1,6 +1,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const Job       = require('../models/Job');
 const AIMatch   = require('../models/AIMatch');
+const logger    = require('../utils/logger');
 
 function buildPrompt(profile, jobs) {
   const profileSummary = `
@@ -60,7 +61,7 @@ exports.getAIRecommendations = async (profile) => {
 
   // If no auth key is set or is placeholder, return mock data
   if (!process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY === 'your_anthropic_api_key') {
-      console.log('Using mock AI data because ANTHROPIC_API_KEY is not set');
+      logger.info('Using mock AI data because ANTHROPIC_API_KEY is not set');
       const mockMatches = jobs.slice(0, Math.min(8, jobs.length)).map((j, i) => ({
           job: j._id,
           score: 95 - (i * 5),
@@ -74,7 +75,7 @@ exports.getAIRecommendations = async (profile) => {
   const prompt = buildPrompt(profile, jobs);
 
   const message = await client.messages.create({
-    model:      'claude-3-5-sonnet-20240620',
+    model:      process.env.AI_MODEL || 'claude-3-5-sonnet-20240620',
     max_tokens: 2000,
     messages:   [{ role: 'user', content: prompt }]
   });
@@ -93,7 +94,7 @@ exports.getAIRecommendations = async (profile) => {
       missingSkills: item.missingSkills,
     }));
   } catch (e) {
-    console.error('AI parse error:', e.message);
+    logger.error(`AI parse error: ${e.message}`);
     throw new Error('Failed to parse AI response');
   }
 
@@ -102,7 +103,7 @@ exports.getAIRecommendations = async (profile) => {
   await AIMatch.findOneAndUpdate(
     { user: profile.user._id },
     { user: profile.user._id, matches, generatedAt: new Date(), expiresAt: expiry },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
 
   return matches;

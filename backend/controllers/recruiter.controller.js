@@ -1,86 +1,97 @@
 const Job = require('../models/Job');
 const Application = require('../models/Application');
-const { getIO } = require('../socket/socket');
+const { createNotification } = require('../services/notification.service');
 
-exports.getRecruiterJobs = async (req, res) => {
+exports.getRecruiterJobs = async (req, res, next) => {
   try {
-    const jobs = await Job.find({ postedBy: req.user.id }).sort({ postedAt: -1 });
-    res.json(jobs);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+    const { page = 1, limit = 20 } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit) || 20));
+
+    const [jobs, total] = await Promise.all([
+      Job.find({ postedBy: req.user.id })
+        .sort({ postedAt: -1 })
+        .skip((pageNum - 1) * limitNum)
+        .limit(limitNum)
+        .lean(),
+      Job.countDocuments({ postedBy: req.user.id }),
+    ]);
+
+    res.json({
+      jobs,
+      totalPages: Math.ceil(total / limitNum),
+      currentPage: pageNum,
+      totalJobs: total,
+    });
+  } catch (err) { next(err); }
 };
 
-exports.getApplicants = async (req, res) => {
+exports.getApplicants = async (req, res, next) => {
   try {
-    // First ensure the job belongs to this recruiter
     const job = await Job.findOne({ _id: req.params.id, postedBy: req.user.id });
     if (!job) return res.status(404).json({ message: 'Job not found or unauthorized' });
 
-    const applications = await Application.find({ job: req.params.id })
-      .populate('applicant', 'name email avatar')
-      .sort({ aiScore: -1 });           // Highest AI score first
-      
-    res.json(applications);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+    const { page = 1, limit = 20 } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit) || 20));
+
+    const [applications, total] = await Promise.all([
+      Application.find({ job: req.params.id })
+        .populate('applicant', 'name email avatar')
+        .sort({ aiScore: -1 })
+        .skip((pageNum - 1) * limitNum)
+        .limit(limitNum),
+      Application.countDocuments({ job: req.params.id }),
+    ]);
+
+    res.json({
+      applications,
+      totalPages: Math.ceil(total / limitNum),
+      currentPage: pageNum,
+      totalApplicants: total,
+    });
+  } catch (err) { next(err); }
 };
 
-exports.updateApplicationStatus = async (req, res) => {
+exports.updateApplicationStatus = async (req, res, next) => {
   try {
     const { status } = req.body;
-    const allowedStatuses = ['applied', 'viewed', 'shortlisted', 'rejected', 'hired'];
-    if (!allowedStatuses.includes(status)) {
-        return res.status(400).json({ message: 'Invalid status' });
-    }
 
     const application = await Application.findById(req.params.id).populate('job');
     if (!application) return res.status(404).json({ message: 'Application not found' });
-
-    // Ensure the recruiter owns the job
-    if (application.job.postedBy.toString() !== req.user.id) {
-        return res.status(403).json({ message: 'Unauthorized to update this application' });
-    }
+    if (application.job.postedBy.toString() !== req.user.id)
+      return res.status(403).json({ message: 'Unauthorized to update this application' });
 
     application.status = status;
     await application.save();
 
-    // Trigger real-time notification
-    try {
-        const io = getIO();
-        io.to(application.applicant.toString()).emit('statusUpdate', {
-            message: `Your application for ${application.job.title} is now ${status}`,
-            jobId: application.job._id,
-            status
-        });
-    } catch (e) {
-        console.error('Socket notification failed', e.message);
-    }
+    // Persistent notification + real-time socket
+    await createNotification({
+      userId: application.applicant.toString(),
+      type: 'application_status',
+      title: `Application ${status}`,
+      message: `Your application for "${application.job.title}" has been ${status}.`,
+      link: `/jobs/${application.job._id}`,
+      metadata: { jobId: application.job._id, status },
+    });
 
     res.json(application);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+  } catch (err) { next(err); }
 };
 
-exports.getAnalytics = async (req, res) => {
+exports.getAnalytics = async (req, res, next) => {
   try {
     const jobs = await Job.find({ postedBy: req.user.id });
     const jobIds = jobs.map(j => j._id);
-    
     const applications = await Application.find({ job: { $in: jobIds } });
-    
     const stats = {
-        totalJobs: jobs.length,
-        activeJobs: jobs.filter(j => j.isActive).length,
-        totalApplications: applications.length,
-        shortlisted: applications.filter(a => a.status === 'shortlisted').length,
-        hired: applications.filter(a => a.status === 'hired').length
+      totalJobs: jobs.length,
+      activeJobs: jobs.filter(j => j.isActive).length,
+      totalApplications: applications.length,
+      shortlisted: applications.filter(a => a.status === 'shortlisted').length,
+      hired: applications.filter(a => a.status === 'hired').length,
+      rejected: applications.filter(a => a.status === 'rejected').length,
     };
-    
     res.json(stats);
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
+  } catch (err) { next(err); }
 };

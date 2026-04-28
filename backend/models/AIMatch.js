@@ -12,4 +12,7 @@ const AIMatchSchema = new mongoose.Schema({
   expiresAt:    { type: Date }                           // TTL: 1 hour
 });
 
+AIMatchSchema.index({ user: 1, expiresAt: 1 });
+AIMatchSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 }); // TTL: auto-cleanup expired matches
+
 module.exports = mongoose.model('AIMatch', AIMatchSchema);

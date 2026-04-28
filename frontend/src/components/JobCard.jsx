@@ -3,16 +3,9 @@ import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function JobCard({ job }) {
-  // Try to determine format for salary
   const formatSalary = (salary) => {
     if (!salary || (!salary.min && !salary.max)) return 'Salary undisclosed';
-    const currencyMap = {
-      'INR': '₹',
-      'USD': '$',
-      'GBP': '£',
-      'EUR': '€'
-    };
-    const sym = currencyMap[salary.currency] || salary.currency;
+    const sym = { INR: '₹', USD: '$', GBP: '£', EUR: '€' }[salary.currency] || salary.currency || '';
     if (salary.min && salary.max) return `${sym}${salary.min.toLocaleString()} - ${sym}${salary.max.toLocaleString()}`;
     if (salary.min) return `From ${sym}${salary.min.toLocaleString()}`;
     if (salary.max) return `Up to ${sym}${salary.max.toLocaleString()}`;
@@ -22,66 +15,37 @@ export default function JobCard({ job }) {
   const timeAgo = job.postedAt ? formatDistanceToNow(new Date(job.postedAt), { addSuffix: true }) : 'Recently';
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="font-bold text-gray-900 text-xl font-sans mb-1">{job.title}</h3>
-          <div className="flex items-center text-primary text-sm font-medium gap-1 mb-2">
-            <Building size={16} />
-            {job.company || 'Confidential Company'}
+    <div className="card p-6 group h-full flex flex-col">
+      <div className="flex justify-between items-start mb-3">
+        <div className="min-w-0 pr-3">
+          <h3 className="font-bold text-slate-900 text-lg mb-1 group-hover:text-primary transition-colors truncate">{job.title}</h3>
+          <div className="flex items-center text-primary text-sm font-medium gap-1.5">
+            <Building size={14} />
+            <span className="truncate">{job.company || 'Confidential'}</span>
           </div>
         </div>
-        
         {job.source && (
-          <span className="text-xs bg-gray-50 border border-gray-200 text-gray-500 px-2 py-1 rounded-md uppercase tracking-wider font-semibold">
-            {job.source}
-          </span>
+          <span className="text-[10px] bg-slate-50 border border-slate-200 text-slate-500 px-2 py-0.5 rounded-md uppercase tracking-widest font-bold shrink-0">{job.source}</span>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-y-2 gap-x-4 mb-4 text-sm text-gray-600">
-        <div className="flex items-center gap-1">
-          <MapPin size={16} className="text-gray-400" />
-          {job.location || 'Remote'}
-        </div>
-        <div className="flex items-center gap-1">
-          <Briefcase size={16} className="text-gray-400" />
-          <span className="capitalize">{job.jobType?.replace('-', ' ') || 'Full time'}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <DollarSign size={16} className="text-gray-400" />
-          {formatSalary(job.salary)}
-        </div>
-        <div className="flex items-center gap-1">
-          <Clock size={16} className="text-gray-400" />
-          {timeAgo}
-        </div>
+      <div className="flex flex-wrap gap-y-1.5 gap-x-4 mb-3 text-sm text-slate-500">
+        <div className="flex items-center gap-1"><MapPin size={14} className="text-slate-400" />{job.location || 'Remote'}</div>
+        <div className="flex items-center gap-1"><Briefcase size={14} className="text-slate-400" /><span className="capitalize">{job.jobType?.replace('-',' ') || 'Full time'}</span></div>
+        <div className="flex items-center gap-1"><DollarSign size={14} className="text-slate-400" />{formatSalary(job.salary)}</div>
+        <div className="flex items-center gap-1"><Clock size={14} className="text-slate-400" />{timeAgo}</div>
       </div>
 
-      <div className="mb-6 h-12 overflow-hidden text-sm text-gray-500 leading-relaxed text-ellipsis">
-         {job.description?.substring(0, 150)}...
-      </div>
+      <div className="mb-4 h-10 overflow-hidden text-sm text-slate-400 leading-relaxed">{job.description?.substring(0, 130)}...</div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto overflow-hidden h-8">
-          {job.skills?.slice(0, 3).map((skill, i) => (
-            <span key={i} className="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-lg">
-              {skill}
-            </span>
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-auto">
+        <div className="flex flex-wrap gap-1.5 w-full sm:w-auto overflow-hidden h-7">
+          {job.skills?.slice(0, 3).map((s, i) => (
+            <span key={i} className="px-2.5 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 text-xs font-medium rounded-md">{s}</span>
           ))}
-          {job.skills?.length > 3 && (
-            <span className="px-2 py-1 bg-gray-50 text-gray-600 text-xs font-medium rounded-lg">
-              +{job.skills.length - 3}
-            </span>
-          )}
+          {job.skills?.length > 3 && <span className="px-2 py-0.5 bg-slate-50 text-slate-400 border border-slate-100 text-xs font-medium rounded-md">+{job.skills.length - 3}</span>}
         </div>
-        
-        <Link 
-          to={`/jobs/${job._id}`}
-          className="w-full sm:w-auto bg-primary text-white text-center px-6 py-2 rounded-xl text-sm font-medium hover:bg-primary-dark transition-colors"
-        >
-          View Details
-        </Link>
+        <Link to={`/jobs/${job._id}`} className="btn-primary w-full sm:w-auto text-center px-5 py-2 text-sm">View Details</Link>
       </div>
     </div>
   );

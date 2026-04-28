@@ -1,5 +1,6 @@
-const axios = require('axios');
-const Job   = require('../models/Job');
+const axios  = require('axios');
+const Job    = require('../models/Job');
+const logger = require('../utils/logger');
 
 // Fetch from Remotive (free, no key needed)
 async function fetchRemotiveJobs() {
@@ -18,7 +19,7 @@ async function fetchRemotiveJobs() {
       postedAt:    new Date(job.publication_date),
     }));
   } catch (err) {
-    console.error('Remotive fetch error:', err.message);
+    logger.error(`Remotive fetch error: ${err.message}`);
     return [];
   }
 }
@@ -27,7 +28,7 @@ async function fetchRemotiveJobs() {
 async function fetchAdzunaJobs(country = 'in') {
   try {
     if (!process.env.ADZUNA_APP_ID || !process.env.ADZUNA_API_KEY || process.env.ADZUNA_APP_ID === 'your_adzuna_app_id') {
-      console.log('Adzuna API keys not configured. Skipping Adzuna fetch.');
+      logger.info('Adzuna API keys not configured. Skipping Adzuna fetch.');
       return [];
     }
     
@@ -49,7 +50,7 @@ async function fetchAdzunaJobs(country = 'in') {
       postedAt:    new Date(job.created),
     }));
   } catch (err) {
-    console.error('Adzuna fetch error:', err.message);
+    logger.error(`Adzuna fetch error: ${err.message}`);
     return [];
   }
 }
@@ -58,22 +59,23 @@ async function fetchAdzunaJobs(country = 'in') {
 async function saveJobs(jobs) {
   if (jobs.length === 0) return;
   
+  const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   let saved = 0;
   for (const job of jobs) {
     try {
       await Job.findOneAndUpdate(
         { externalId: job.externalId },
-        job,
-        { upsert: true, new: true }
+        { ...job, expiresAt: thirtyDaysFromNow },
+        { upsert: true, returnDocument: 'after' }
       );
       saved++;
     } catch (e) { /* skip duplicates */ }
   }
-  console.log(`✅ Saved ${saved} jobs`);
+  logger.info(`Job scraper saved ${saved} jobs`);
 }
 
 exports.runScraper = async () => {
-  console.log('🔍 Running job scraper...');
+  logger.info('Running job scraper...');
   const [remotive, adzuna] = await Promise.all([fetchRemotiveJobs(), fetchAdzunaJobs()]);
   await saveJobs([...remotive, ...adzuna]);
 };
